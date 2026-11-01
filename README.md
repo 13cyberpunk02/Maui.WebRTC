@@ -1,4 +1,4 @@
-**English** | [Русский](README.ru.md)
+**English** | [Русский](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/README.ru.md)
 
 # Maui.WebRTC
 
@@ -66,7 +66,7 @@ Events are raised in order on a background thread, so handlers must switch to th
 WebRTC does not define how peers exchange offers, answers and candidates: that is up to the app. Deliver them in order
 and set the remote description before adding candidates, or `AddIceCandidateAsync` fails.
 
-**[Connecting through an ASP.NET Core signaling server](docs/signaling-aspnetcore.md)** is the recommended way.
+**[Connecting through an ASP.NET Core signaling server](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/docs/signaling-aspnetcore.md)** is the recommended way.
 
 `samples/Maui.WebRTC.Sample` also shows a complete call over plain TCP, which is unauthenticated and only for trusted networks.
 
@@ -95,5 +95,5 @@ C++ layer must match the prebuilt library's ABI. `native/CMakeLists.txt` records
 
 ## License
 
-[MIT](LICENSE) © 13CyberPunk02. The binaries also contain libwebrtc and its dependencies under their own licenses;
+[MIT](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/LICENSE) © 13CyberPunk02. The binaries also contain libwebrtc and its dependencies under their own licenses;
 the package includes them in `licenses/`.

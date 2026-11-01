@@ -1,4 +1,4 @@
-[English](README.md) | **Русский**
+[English](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/README.md) | **Русский**
 
 # Maui.WebRTC
 
@@ -67,7 +67,7 @@ await connection.SetLocalDescriptionAsync(offer);
 WebRTC не определяет, как собеседники обмениваются offer, answer и ICE-кандидатами: это задача приложения. Передавайте их
 по порядку и устанавливайте удалённое описание раньше, чем добавляете кандидатов, иначе `AddIceCandidateAsync` завершится ошибкой.
 
-**[Подключение через сигнальный сервер на ASP.NET Core](docs/signaling-aspnetcore.ru.md)** — рекомендуемый способ.
+**[Подключение через сигнальный сервер на ASP.NET Core](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/docs/signaling-aspnetcore.ru.md)** — рекомендуемый способ.
 
 В `samples/Maui.WebRTC.Sample` есть и полный звонок через обычный TCP, но он без авторизации и только для доверенных сетей.
 
@@ -96,5 +96,5 @@ dotnet pack src/Maui.WebRTC/Maui.WebRTC.csproj -c Release -o artifacts/packages
 
 ## Лицензия
 
-[MIT](LICENSE) © 13CyberPunk02. Бинарные файлы также содержат libwebrtc и её зависимости под их собственными лицензиями;
+[MIT](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/LICENSE) © 13CyberPunk02. Бинарные файлы также содержат libwebrtc и её зависимости под их собственными лицензиями;
 они включены в пакет в папке `licenses/`.

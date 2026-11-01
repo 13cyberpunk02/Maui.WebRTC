@@ -5,6 +5,7 @@ obj/
 *.nupkg
 artifacts/
 build/
+.idea/
 
 # Prebuilt libwebrtc is downloaded, never committed (archives are hundreds of MB)
 third_party/
