@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:webrtc="clr-namespace:Maui.WebRTC;assembly=Maui.WebRTC"
+             x:Class="Maui.WebRTC.Sample.MainPage"
+             BackgroundColor="Black">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,*">
+        <Label x:Name="StatusLabel" AutomationId="StatusLabel" Padding="12" TextColor="White" Text="Listen on one device, then connect from the other." />
+
+        <Grid x:Name="Controls" Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Padding="12,0,12,8">
+            <Entry x:Name="HostEntry" Placeholder="Other device's IP" TextColor="White" Keyboard="Url" />
+            <Button Grid.Column="1" Text="Connect" Clicked="OnConnectClicked" />
+            <Button Grid.Column="2" Text="Listen" Clicked="OnListenClicked" />
+            <Button Grid.Column="3" Text="Loopback" Clicked="OnLoopbackClicked" />
+        </Grid>
+
+        <webrtc:VideoView x:Name="LocalVideo" Grid.Row="2" />
+        <Label Grid.Row="3" Text="Remote" Padding="12,4" TextColor="White" />
+        <webrtc:VideoView x:Name="RemoteVideo" Grid.Row="4" />
+    </Grid>
+
+</ContentPage>

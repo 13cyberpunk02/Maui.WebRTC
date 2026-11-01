@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+*.nupkg
+artifacts/
+build/
+
+# Prebuilt libwebrtc is downloaded, never committed (archives are hundreds of MB)
+third_party/

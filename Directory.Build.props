@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Pinned so the build does not depend on the machine-wide JAVA_HOME. Override with -p:JavaSdkDirectory=... -->
+    <JavaSdkDirectory Condition="'$(JavaSdkDirectory)' == '' And Exists('C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot')">C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot</JavaSdkDirectory>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+</Project>

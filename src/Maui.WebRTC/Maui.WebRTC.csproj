@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net10.0-android</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
+
+		<PackageId>Maui.WebRTC</PackageId>
+		<Version>0.1.0-preview.1</Version>
+		<Description>Native WebRTC for .NET MAUI on Android and Windows, without a WebView: a C# API and a XAML VideoView over libwebrtc.</Description>
+		<PackageTags>maui;webrtc;video;audio;android;windows</PackageTags>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Authors>13CyberPunk02</Authors>
+		<Copyright>Copyright (c) 2026 13CyberPunk02</Copyright>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+		<UseMaui>true</UseMaui>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- Enable XAML source generation for faster build times and improved performance.
+		     This generates C# code from XAML at compile time instead of runtime inflation.
+		     To disable, remove this line.
+		     For individual files, you can override by setting Inflator metadata:
+		       <MauiXaml Update="MyPage.xaml" Inflator="Default" /> (reverts to defaults: Runtime for Debug, XamlC for Release)
+		       <MauiXaml Update="MyPage.xaml" Inflator="Runtime" /> (force runtime inflation) -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<AndroidNativeLibrary Include="..\..\artifacts\native\android-arm64\libmaui_webrtc.so" Abi="arm64-v8a" />
+		<!-- libwebrtc's JNI code looks these classes up at runtime, including org.webrtc.WebRtcClassLoader -->
+		<AndroidLibrary Include="..\..\third_party\webrtc\android\webrtc\jar\webrtc.jar" Bind="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<!-- Pack doesn't evaluate per target framework, so this can't sit in the Windows-only group above. -->
+		<None Include="..\..\artifacts\native\win-x64\maui_webrtc.dll" Pack="true" PackagePath="runtimes/win-x64/native/" />
+		<!-- libwebrtc's licences and those of everything linked into it must ship with the binaries. -->
+		<None Include="..\..\third_party\webrtc\windows_x86_64\webrtc\NOTICE" Pack="true" PackagePath="licenses/windows/" />
+		<None Include="..\..\third_party\webrtc\android\webrtc\NOTICE" Pack="true" PackagePath="licenses/android/" />
+	</ItemGroup>
+
+	<!-- For project references such as the sample; package consumers get the DLL through runtimes/. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<None Update="..\..\artifacts\native\win-x64\maui_webrtc.dll" Link="maui_webrtc.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<Target Name="CheckNativeLibraries" BeforeTargets="BeforeBuild">
+		<Error Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' And !Exists('..\..\artifacts\native\win-x64\maui_webrtc.dll')" Text="Native library missing: run scripts/build-native-windows.ps1 (see README.md)." />
+		<Error Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And !Exists('..\..\artifacts\native\android-arm64\libmaui_webrtc.so')" Text="Native library missing: run scripts/build-native-android.ps1 (see README.md)." />
+	</Target>
+
+</Project>
