@@ -171,13 +171,8 @@ The hub in this repository is a starting point. Before exposing it to the intern
   new SignalingClient(hubUrl, connection, room, accessToken: () => Task.FromResult<string?>(token));
   ```
 - **Add STUN and TURN.** The connection above only works when the devices can reach each other directly. Across the internet, use
-  STUN, and for networks that block direct connections you need a TURN server (such as [coturn](https://github.com/coturn/coturn)):
-  ```csharp
-  var connection = factory.CreatePeerConnection([
-      new IceServer("stun:turn.example.com:3478"),
-      new IceServer("turn:turn.example.com:3478", "user", "password"),
-  ]);
-  ```
+  STUN, and for networks that block direct connections you need a TURN server with temporary credentials from your server.
+  [Running your own coturn](turn.md) covers the setup, the credentials endpoint and a check.
 - **Running several server instances?** Rooms are kept in the memory of one process. Move them to shared storage and add a
   [SignalR backplane](https://learn.microsoft.com/aspnet/core/signalr/scale) such as Redis.
 - **Behind a reverse proxy,** make sure WebSocket upgrades are passed through.

@@ -1,0 +1,14 @@
+# coturn on a Linux server. See docs/turn.md.
+#
+# Host networking: the relay range is thousands of UDP ports, and publishing them one by one
+# through Docker is slow and hides the clients' real addresses from coturn.
+services:
+  coturn:
+    image: coturn/coturn:4.6.3
+    # Only our file: the image's default command adds its own external-ip, which clashes with the one set there.
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./certs:/etc/coturn/certs:ro

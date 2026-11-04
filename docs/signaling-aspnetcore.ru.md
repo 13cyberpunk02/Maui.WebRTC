@@ -171,13 +171,8 @@ public partial class CallPage : ContentPage
   new SignalingClient(hubUrl, connection, room, accessToken: () => Task.FromResult<string?>(token));
   ```
 - **Добавьте STUN и TURN.** Код выше работает, только когда устройства видят друг друга напрямую. Через интернет используйте STUN, а для сетей,
-  которые блокируют прямые соединения, нужен TURN-сервер (например, [coturn](https://github.com/coturn/coturn)):
-  ```csharp
-  var connection = factory.CreatePeerConnection([
-      new IceServer("stun:turn.example.com:3478"),
-      new IceServer("turn:turn.example.com:3478", "user", "password"),
-  ]);
-  ```
+  которые блокируют прямые соединения, нужен TURN-сервер с временными паролями от вашего сервера. Развёртывание, эндпоинт
+  паролей и проверка описаны в гайде [Свой TURN-сервер](turn.ru.md).
 - **Несколько экземпляров сервера?** Комнаты хранятся в памяти одного процесса. Перенесите их в общее хранилище и добавьте
   [backplane для SignalR](https://learn.microsoft.com/aspnet/core/signalr/scale), например Redis.
 - **За обратным прокси** убедитесь, что проходят WebSocket-подключения (upgrade).

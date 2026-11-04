@@ -5,8 +5,8 @@
 Native WebRTC for .NET MAUI on Android and Windows, without a WebView: a C# API and a XAML `VideoView`
 over Google's libwebrtc.
 
-> Status: preview. Calls between a phone and a PC have been tested on a local network; connections over
-> the internet through STUN and TURN have not been tested yet.
+> Status: preview. Calls between a phone and a PC have been tested on a local network, and connections through a TURN
+> server in a local test; calls between devices on different networks over the internet have not been tested yet.
 
 ## Platforms
 
@@ -68,6 +68,8 @@ and set the remote description before adding candidates, or `AddIceCandidateAsyn
 
 **[Connecting through an ASP.NET Core signaling server](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/docs/signaling-aspnetcore.md)** is the recommended way.
 
+For calls over the internet you also need a TURN server: **[running your own coturn](https://github.com/13cyberpunk02/Maui.WebRTC/blob/main/docs/turn.md)**.
+
 `samples/Maui.WebRTC.Sample` also shows a complete call over plain TCP, which is unauthenticated and only for trusted networks.
 
 ## Codecs
@@ -91,7 +93,8 @@ dotnet pack src/Maui.WebRTC/Maui.WebRTC.csproj -c Release -o artifacts/packages
 C++ layer must match the prebuilt library's ABI. `native/CMakeLists.txt` records why each flag is needed.
 
 `tests/Maui.WebRTC.NativeSmoke` checks data channels and video on Windows without any UI, and
-`tests/Maui.WebRTC.SignalingSmoke` runs a call through the signaling server.
+`tests/Maui.WebRTC.SignalingSmoke` runs a call through the signaling server, and `tests/Maui.WebRTC.TurnSmoke` checks that
+a connection gets through a TURN server.
 
 ## License
 

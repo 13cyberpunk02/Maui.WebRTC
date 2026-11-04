@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="..\..\src\Maui.WebRTC\Native\*.cs" LinkBase="Native" />
+		<Compile Include="..\..\src\Maui.WebRTC\Core\*.cs" LinkBase="Core" />
+		<None Include="..\..\artifacts\native\win-x64\maui_webrtc.dll" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+</Project>

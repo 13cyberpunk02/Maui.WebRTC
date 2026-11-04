@@ -1,0 +1,15 @@
+# coturn on Windows or macOS with Docker Desktop, for a local check. See docs/turn.md.
+#   $env:TURN_LOCAL_IP = "192.168.0.80"   # this computer's address in the local network
+#   docker compose -f samples/turn/docker-compose.local.yml up -d
+# libwebrtc doesn't use TURN at 127.0.0.1, so coturn is published on the local network address.
+services:
+  coturn:
+    image: coturn/coturn:4.6.3
+    # Only our file: the image's default command adds an external-ip of its own.
+    command: ["-c", "/etc/coturn/turnserver.conf", "--external-ip=${TURN_LOCAL_IP:?set TURN_LOCAL_IP}"]
+    ports:
+      - "${TURN_LOCAL_IP}:3478:3478/udp"
+      - "${TURN_LOCAL_IP}:3478:3478/tcp"
+      - "${TURN_LOCAL_IP}:49160-49200:49160-49200/udp"
+    volumes:
+      - ./turnserver.local.conf:/etc/coturn/turnserver.conf:ro
