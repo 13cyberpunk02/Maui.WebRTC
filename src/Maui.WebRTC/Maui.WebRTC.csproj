@@ -4,11 +4,11 @@
 		<TargetFrameworks>net10.0-android</TargetFrameworks>
 		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
 
-		<PackageId>Maui.WebRTC</PackageId>
+		<PackageId>13CyberPunk02.Maui.WebRTC</PackageId>
 		<Version>0.1.0-preview.1</Version>
 		<Description>Native WebRTC for .NET MAUI on Android and Windows, without a WebView: a C# API and a XAML VideoView over libwebrtc.</Description>
 		<PackageTags>maui;webrtc;video;audio;android;windows</PackageTags>
-		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageReadmeFile>README.md</PackageReadmeFile>		
 		<PackageProjectUrl>https://github.com/13CyberPunk02/Maui.WebRTC</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/13CyberPunk02/Maui.WebRTC</RepositoryUrl>
 		<Authors>13CyberPunk02</Authors>
