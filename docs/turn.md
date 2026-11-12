@@ -61,6 +61,9 @@ sudo mkdir -p /opt/coturn/certs
 scp samples/turn/docker-compose.yml samples/turn/turnserver.conf user@turn.example.com:/tmp/
 # on the server:
 sudo mv /tmp/docker-compose.yml /tmp/turnserver.conf /opt/coturn/
+# coturn runs as nobody (uid 65534) in its container: the file must belong to it, or coturn can't read the
+# config and silently starts with its defaults, without your secret or the protections
+sudo chown 65534:65534 /opt/coturn/turnserver.conf
 sudo chmod 600 /opt/coturn/turnserver.conf
 ```
 
@@ -121,7 +124,7 @@ sudo docker compose up -d
 sudo docker compose logs -f
 ```
 
-The log should have no `ERROR` lines. It should list the addresses coturn listens on and mention the loaded certificate.
+The log should have no `ERROR` and no `Cannot find config file` lines: the latter means coturn couldn't read the config (see the file's owner in step 4) and runs without your secret. It should list the addresses coturn listens on and mention the loaded certificate.
 
 `docker-compose.yml` uses `network_mode: host`, so coturn sees the clients' real addresses and the thousands of ports
 don't have to be published through Docker. That only works on Linux.
@@ -230,6 +233,7 @@ docker compose -f samples/turn/docker-compose.local.yml down
 
 | What you see | Cause and fix |
 |---|---|
+| `Cannot find config file` or `turn_server_cert.pem` in the log | coturn can't read its config and runs with defaults. The config must belong to uid 65534: `sudo chown 65534:65534 /opt/coturn/turnserver.conf`, then `docker compose up -d --force-recreate`. |
 | The test prints `No relay candidates` | Requests don't reach coturn, or it rejects the password. Check port 3478 in the firewall and the cloud. `401 Unauthorized` in coturn's log means a wrong secret or an expired password: compare the secret on both servers and the clock on the coturn server. |
 | There are `relay` candidates but no connection | The 49152–65535/UDP range is closed, or `external-ip` is wrong: coturn's log shows an internal address for the session instead of the public one. |
 | Works only over UDP, or only without TLS | TCP 3478 or 5349 is closed, or coturn didn't read the certificate: look for `cert` or `pkey` in its log. |

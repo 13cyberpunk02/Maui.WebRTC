@@ -62,6 +62,9 @@ sudo mkdir -p /opt/coturn/certs
 scp samples/turn/docker-compose.yml samples/turn/turnserver.conf user@turn.example.com:/tmp/
 # на сервере:
 sudo mv /tmp/docker-compose.yml /tmp/turnserver.conf /opt/coturn/
+# coturn в контейнере работает от nobody (uid 65534): файл должен принадлежать ему, иначе coturn не прочитает
+# конфиг и молча запустится с настройками по умолчанию, без вашего секрета и защиты
+sudo chown 65534:65534 /opt/coturn/turnserver.conf
 sudo chmod 600 /opt/coturn/turnserver.conf
 ```
 
@@ -122,7 +125,7 @@ sudo docker compose up -d
 sudo docker compose logs -f
 ```
 
-В журнале не должно быть строк `ERROR`. Должны появиться адреса, на которых coturn слушает, и строка о загруженном
+В журнале не должно быть строк `ERROR` и `Cannot find config file`: последняя значит, что coturn не смог прочитать конфиг (см. владельца файла в шаге 4) и работает без вашего секрета. Должны появиться адреса, на которых coturn слушает, и строка о загруженном
 сертификате.
 
 `docker-compose.yml` использует `network_mode: host`: coturn сразу видит настоящие адреса клиентов, а тысячи портов
@@ -233,6 +236,7 @@ docker compose -f samples/turn/docker-compose.local.yml down
 
 | Что видно | Причина и что делать |
 |---|---|
+| В журнале `Cannot find config file` или `turn_server_cert.pem` | coturn не может прочитать конфиг и работает с настройками по умолчанию. Конфиг должен принадлежать uid 65534: `sudo chown 65534:65534 /opt/coturn/turnserver.conf`, затем `docker compose up -d --force-recreate`. |
 | Тест пишет `No relay candidates` | До coturn не доходят запросы или он отклоняет пароль. Проверьте порт 3478 в брандмауэре и облаке. В журнале coturn `401 Unauthorized` значит неверный секрет или истёкший пароль: сравните секрет на обоих серверах и время на сервере coturn. |
 | Кандидаты `relay` есть, но соединения нет | Закрыт диапазон 49152–65535/UDP или неверный `external-ip`: в журнале coturn у сессии внутренний адрес вместо публичного. |
 | Работает только по UDP или только без TLS | Закрыт TCP 3478 или 5349, либо coturn не прочитал сертификат: ищите в журнале строки про `cert` или `pkey`. |
