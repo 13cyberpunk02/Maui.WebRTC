@@ -50,6 +50,16 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(Library, EntryPoint = "mrtc_factory_create_with_audio_device")]
     internal static partial nint FactoryCreateWithAudioDevice(nint androidAudioDeviceModule);
 
+    [LibraryImport(Library, EntryPoint = "mrtc_factory_audio_output_count")]
+    internal static partial int FactoryAudioOutputCount(nint factory);
+
+    /// <summary>A heap string to free with <see cref="StringFree"/>, or zero.</summary>
+    [LibraryImport(Library, EntryPoint = "mrtc_factory_audio_output_name")]
+    internal static partial nint FactoryAudioOutputName(nint factory, int index);
+
+    [LibraryImport(Library, EntryPoint = "mrtc_factory_set_audio_output")]
+    internal static partial int FactorySetAudioOutput(nint factory, int index);
+
     [LibraryImport(Library, EntryPoint = "mrtc_factory_destroy")]
     internal static partial void FactoryDestroy(nint factory);
 
@@ -153,10 +163,29 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(Library, EntryPoint = "mrtc_camera_count")]
     internal static partial int CameraCount();
 
+    /// <summary>A heap string to free with <see cref="StringFree"/>, or zero.</summary>
+    [LibraryImport(Library, EntryPoint = "mrtc_camera_name")]
+    internal static partial nint CameraName(int deviceIndex);
+
     [LibraryImport(Library, EntryPoint = "mrtc_camera_start")]
     internal static partial nint CameraStart(int deviceIndex, int width, int height, int fps, nint source);
 
     [LibraryImport(Library, EntryPoint = "mrtc_camera_stop")]
     internal static partial void CameraStop(nint camera);
 #endif
+
+    /// <summary>Copies a string the native side allocated, and frees it.</summary>
+    internal static string? TakeString(nint value)
+    {
+        if (value == 0)
+            return null;
+        try
+        {
+            return System.Runtime.InteropServices.Marshal.PtrToStringUTF8(value);
+        }
+        finally
+        {
+            StringFree(value);
+        }
+    }
 }

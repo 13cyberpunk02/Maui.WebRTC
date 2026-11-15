@@ -90,6 +90,36 @@ public sealed class PeerConnectionFactory : IDisposable
         return track != 0 ? new AudioTrack(track) : throw new WebRtcException("Failed to create the audio track.");
     }
 
+    /// <summary>
+    /// Windows: the speakers and headphones calls can be heard on, as the system names them. Empty on Android,
+    /// where the app routes audio with AudioManager (speakerphone, earpiece, Bluetooth) instead.
+    /// </summary>
+    public IReadOnlyList<AudioDevice> AudioOutputs
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_handle == 0, this);
+            var count = Math.Max(0, NativeMethods.FactoryAudioOutputCount(_handle));
+            var devices = new List<AudioDevice>(count);
+            for (var i = 0; i < count; i++)
+            {
+                if (NativeMethods.TakeString(NativeMethods.FactoryAudioOutputName(_handle, i)) is { } name)
+                    devices.Add(new AudioDevice(i, name));
+            }
+            return devices;
+        }
+    }
+
+    /// <summary>
+    /// Windows: plays calls on <paramref name="device"/>, or on the system's default communications device for null.
+    /// Works during a call. Returns false where it isn't supported or the device refused.
+    /// </summary>
+    public bool SetAudioOutput(AudioDevice? device)
+    {
+        ObjectDisposedException.ThrowIf(_handle == 0, this);
+        return NativeMethods.FactorySetAudioOutput(_handle, device?.Index ?? -1) == 0;
+    }
+
     public void Dispose()
     {
         var handle = Interlocked.Exchange(ref _handle, 0);

@@ -6,6 +6,7 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Java.Lang;
+using NativeCamera = Android.Hardware.Camera2.CameraDevice;
 
 namespace Maui.WebRTC;
 
@@ -13,51 +14,53 @@ public sealed partial class CameraCapturer
 {
     Session? _session;
 
-    public static partial int DeviceCount => Manager.GetCameraIdList().Length;
+    public static partial int DeviceCount => Devices.Count;
+
+    /// <summary>
+    /// The main camera of each side, plus a USB camera if one is plugged in. Phones list more back cameras
+    /// (wide, macro, …), but those are the main camera's business, not a separate choice in a call.
+    /// </summary>
+    public static partial IReadOnlyList<CameraDevice> Devices
+    {
+        get
+        {
+            var ids = Manager.GetCameraIdList();
+            var devices = new List<CameraDevice>();
+            foreach (var (wanted, facing, name) in new[]
+            {
+                (LensFacing.Front, CameraFacing.Front, "Front camera"),
+                (LensFacing.Back, CameraFacing.Back, "Back camera"),
+                (LensFacing.External, CameraFacing.External, "USB camera"),
+            })
+            {
+                var index = Array.FindIndex(ids, id => FacingOf(id) == wanted);
+                if (index >= 0)
+                    devices.Add(new CameraDevice(index, name, facing));
+            }
+            return devices;
+        }
+    }
 
     static CameraManager Manager =>
         (CameraManager)global::Android.App.Application.Context.GetSystemService(Context.CameraService)!;
 
-    partial void StartPlatform(VideoSource source, int width, int height, int fps, CameraFacing facing)
+    partial void OpenPlatform(VideoSource source, CameraDevice device, int width, int height, int fps)
     {
-        var cameraId = PickCamera(facing == CameraFacing.Back ? LensFacing.Back : LensFacing.Front, out var found);
-        var session = new Session(source, cameraId, found, width, height, fps);
+        var ids = Manager.GetCameraIdList();
+        if (device.Index >= ids.Length)
+            throw new WebRtcException($"The camera \"{device.Name}\" is gone.");
+
+        // A USB camera is mounted like a back one: its picture needs no mirroring.
+        var facing = device.Facing == CameraFacing.Front ? LensFacing.Front : LensFacing.Back;
+        var session = new Session(source, ids[device.Index], facing, width, height, fps);
         session.Open();
         _session = session;
-        Facing = found == LensFacing.Front ? CameraFacing.Front : CameraFacing.Back;
-    }
-
-    partial void SwitchPlatform(VideoSource source, int width, int height, int fps)
-    {
-        var next = Facing == CameraFacing.Front ? CameraFacing.Back : CameraFacing.Front;
-        StopPlatform();
-        StartPlatform(source, width, height, fps, next);
     }
 
     partial void StopPlatform()
     {
         var session = Interlocked.Exchange(ref _session, null);
         session?.Dispose();
-    }
-
-    /// <summary>The first camera facing the wanted way, or else the first camera there is.</summary>
-    static string PickCamera(LensFacing wanted, out LensFacing facing)
-    {
-        var ids = Manager.GetCameraIdList();
-        if (ids.Length == 0)
-            throw new WebRtcException("This device has no camera.");
-
-        foreach (var id in ids)
-        {
-            if (FacingOf(id) == wanted)
-            {
-                facing = wanted;
-                return id;
-            }
-        }
-
-        facing = FacingOf(ids[0]) ?? LensFacing.Back;
-        return ids[0];
     }
 
     static LensFacing? FacingOf(string id)
@@ -71,7 +74,7 @@ public sealed partial class CameraCapturer
         readonly HandlerThread _thread = new("Maui.WebRTC.Camera");
         Handler? _handler;
         ImageReader? _reader;
-        CameraDevice? _device;
+        NativeCamera? _device;
         CameraCaptureSession? _capture;
         int _sensorOrientation;
 
@@ -93,7 +96,7 @@ public sealed partial class CameraCapturer
             Manager.OpenCamera(cameraId, new DeviceCallback(this), _handler);
         }
 
-        void OnOpened(CameraDevice device)
+        void OnOpened(NativeCamera device)
         {
             _device = device;
             var surface = _reader!.Surface!;
@@ -181,11 +184,11 @@ public sealed partial class CameraCapturer
             public void OnImageAvailable(ImageReader? reader) => session.OnImageAvailable(reader!);
         }
 
-        sealed class DeviceCallback(Session session) : CameraDevice.StateCallback
+        sealed class DeviceCallback(Session session) : NativeCamera.StateCallback
         {
-            public override void OnOpened(CameraDevice camera) => session.OnOpened(camera);
-            public override void OnDisconnected(CameraDevice camera) => camera.Close();
-            public override void OnError(CameraDevice camera, [GeneratedEnum] CameraError error) => camera.Close();
+            public override void OnOpened(NativeCamera camera) => session.OnOpened(camera);
+            public override void OnDisconnected(NativeCamera camera) => camera.Close();
+            public override void OnError(NativeCamera camera, [GeneratedEnum] CameraError error) => camera.Close();
         }
 
         sealed class SessionCallback(Session owner, Surface surface) : CameraCaptureSession.StateCallback

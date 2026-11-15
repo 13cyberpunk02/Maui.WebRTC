@@ -1,5 +1,6 @@
 #include "maui_webrtc.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstring>
 #include <functional>
@@ -49,6 +50,10 @@
 #include <winsock2.h>
 #include <wrl/client.h>
 
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "api/audio/create_audio_device_module.h"
+#include "api/environment/environment_factory.h"
 #include "modules/video_capture/video_capture.h"
 #include "modules/video_capture/video_capture_factory.h"
 #endif
@@ -75,6 +80,7 @@ struct FactoryState {
   ~FactoryState() {
     // The factory must go first: its teardown still runs tasks on both threads.
     factory = nullptr;
+    audio_device = nullptr;
     if (signaling_thread) {
       signaling_thread->Stop();
     }
@@ -86,6 +92,8 @@ struct FactoryState {
   std::unique_ptr<webrtc::Thread> network_thread;
   std::unique_ptr<webrtc::Thread> signaling_thread;
   webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory;
+  // Kept so the app can choose where calls are heard. Used on the signaling thread, one call at a time.
+  webrtc::scoped_refptr<webrtc::AudioDeviceModule> audio_device;
 };
 
 class PcObserver final : public webrtc::PeerConnectionObserver {
@@ -589,7 +597,15 @@ mrtc_factory* mrtc_factory_create_with_audio_device(void* android_audio_device_m
   deps.env = env;
 #else
   (void)android_audio_device_module;
+  // Created here rather than left to the factory, so the app can pick the speakers or headphones.
+  // On a libwebrtc thread, not the caller's: Core Audio needs a multithreaded COM apartment, and an app's
+  // UI thread is single-threaded, which trips a check inside libwebrtc on the first call.
+  webrtc::Environment env = webrtc::CreateEnvironment();
+  deps.adm = state->signaling_thread->BlockingCall(
+      [&] { return webrtc::CreateAudioDeviceModule(env, webrtc::AudioDeviceModule::kPlatformDefaultAudio); });
+  deps.env = env;
 #endif
+  state->audio_device = deps.adm;
   // Echo cancellation, noise suppression and gain control in software (AEC3), set up explicitly
   // rather than left to whatever the defaults are in a given libwebrtc version.
   deps.audio_processing_builder = std::make_unique<webrtc::BuiltinAudioProcessingBuilder>();
@@ -600,6 +616,93 @@ mrtc_factory* mrtc_factory_create_with_audio_device(void* android_audio_device_m
     return nullptr;
   }
   return new mrtc_factory{std::move(state)};
+}
+
+#if defined(_WIN32)
+namespace {
+// libwebrtc only initializes the device for the first call; listing or choosing one may come before that.
+// Init is safe to repeat, so libwebrtc's own call later changes nothing.
+bool EnsureInitialized(webrtc::AudioDeviceModule& adm) {
+  return adm.Initialized() || adm.Init() == 0;
+}
+}  // namespace
+#endif
+
+int32_t mrtc_factory_audio_output_count(mrtc_factory* factory) {
+#if defined(_WIN32)
+  auto& state = *factory->state;
+  if (!state.audio_device) {
+    return 0;
+  }
+  return state.signaling_thread->BlockingCall([&]() -> int32_t {
+    if (!EnsureInitialized(*state.audio_device)) {
+      return 0;
+    }
+    return std::max<int32_t>(0, state.audio_device->PlayoutDevices());
+  });
+#else
+  (void)factory;
+  return 0;
+#endif
+}
+
+char* mrtc_factory_audio_output_name(mrtc_factory* factory, int32_t index) {
+#if defined(_WIN32)
+  auto& state = *factory->state;
+  if (!state.audio_device || index < 0) {
+    return nullptr;
+  }
+  char name[webrtc::kAdmMaxDeviceNameSize] = {};
+  char guid[webrtc::kAdmMaxGuidSize] = {};
+  bool found = state.signaling_thread->BlockingCall([&] {
+    return EnsureInitialized(*state.audio_device) &&
+           state.audio_device->PlayoutDeviceName(static_cast<uint16_t>(index), name, guid) == 0;
+  });
+  if (!found) {
+    return nullptr;
+  }
+  size_t length = std::strlen(name);
+  char* copy = new char[length + 1];
+  std::memcpy(copy, name, length + 1);
+  return copy;
+#else
+  (void)factory;
+  (void)index;
+  return nullptr;
+#endif
+}
+
+int32_t mrtc_factory_set_audio_output(mrtc_factory* factory, int32_t index) {
+#if defined(_WIN32)
+  auto& state = *factory->state;
+  if (!state.audio_device) {
+    return -1;
+  }
+  return state.signaling_thread->BlockingCall([&]() -> int32_t {
+    auto& adm = *state.audio_device;
+    if (!EnsureInitialized(adm)) {
+      return -1;
+    }
+    // A device can only be changed while nothing plays, so a call in progress is paused for a moment.
+    bool playing = adm.Playing();
+    if (playing && adm.StopPlayout() != 0) {
+      return -1;
+    }
+    int32_t result = index < 0 ? adm.SetPlayoutDevice(webrtc::AudioDeviceModule::kDefaultCommunicationDevice)
+                               : adm.SetPlayoutDevice(static_cast<uint16_t>(index));
+    if (playing) {
+      // Even when the new device was refused, playing resumes on the old one rather than staying silent.
+      if (adm.InitPlayout() != 0 || adm.StartPlayout() != 0) {
+        return -1;
+      }
+    }
+    return result;
+  });
+#else
+  (void)factory;
+  (void)index;
+  return -1;
+#endif
 }
 
 void mrtc_factory_destroy(mrtc_factory* factory) {
@@ -872,6 +975,20 @@ struct mrtc_camera {
 int32_t mrtc_camera_count(void) {
   std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
   return info ? static_cast<int32_t>(info->NumberOfDevices()) : 0;
+}
+
+char* mrtc_camera_name(int32_t device_index) {
+  std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
+  char name[256] = {};
+  char id[256] = {};
+  if (!info || device_index < 0 ||
+      info->GetDeviceName(static_cast<uint32_t>(device_index), name, sizeof(name), id, sizeof(id)) != 0) {
+    return nullptr;
+  }
+  size_t length = std::strlen(name);
+  char* copy = new char[length + 1];
+  std::memcpy(copy, name, length + 1);
+  return copy;
 }
 
 mrtc_camera* mrtc_camera_start(int32_t device_index, int32_t width, int32_t height, int32_t fps,

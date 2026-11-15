@@ -51,6 +51,14 @@ MRTC_API mrtc_factory* mrtc_factory_create(void);
 MRTC_API mrtc_factory* mrtc_factory_create_with_audio_device(void* android_audio_device_module);
 MRTC_API void mrtc_factory_destroy(mrtc_factory* factory);
 
+/* Windows only: where calls are heard. Elsewhere the count is 0 and choosing fails (Android routes
+ * audio through AudioManager instead). Names are heap copies; release with mrtc_string_free.
+ * Choosing works during a call: playing pauses for a moment and resumes on the new device.
+ * A negative index means the system's default communications device. Returns 0 on success. */
+MRTC_API int32_t mrtc_factory_audio_output_count(mrtc_factory* factory);
+MRTC_API char* mrtc_factory_audio_output_name(mrtc_factory* factory, int32_t index);
+MRTC_API int32_t mrtc_factory_set_audio_output(mrtc_factory* factory, int32_t index);
+
 typedef struct mrtc_ice_server {
   const char* url;
   const char* username; /* may be NULL */
@@ -158,6 +166,8 @@ MRTC_API void mrtc_renderer_set_size(mrtc_renderer* renderer, int32_t width, int
 
 /* Captures from a camera into `source`. Returns NULL if the device cannot be opened. */
 MRTC_API int32_t mrtc_camera_count(void);
+/* The camera's name as Windows shows it, or NULL; release with mrtc_string_free. */
+MRTC_API char* mrtc_camera_name(int32_t device_index);
 MRTC_API mrtc_camera* mrtc_camera_start(int32_t device_index, int32_t width, int32_t height, int32_t fps,
                                         mrtc_video_source* source);
 MRTC_API void mrtc_camera_stop(mrtc_camera* camera);

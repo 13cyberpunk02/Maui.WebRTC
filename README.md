@@ -63,10 +63,17 @@ Events are raised in order on a background thread, so handlers must switch to th
 
 ### Camera
 
-`camera.Switch()` moves to the other camera during a call: between front and back on a phone, to the next connected
-camera on Windows. Frames keep going into the same source, so nothing has to be renegotiated. `CameraCapturer.CanSwitch`
-tells whether there is another camera, and `camera.Facing` which one is in use. `Start` takes the camera to begin with:
+`CameraCapturer.Devices` lists the cameras: front and back on a phone, every connected camera on Windows by the name
+the system shows (virtual ones such as OBS included). `camera.SwitchTo(device)` moves to one of them during a call, and
+`camera.Switch()` to the next. Frames keep going into the same source, so nothing has to be renegotiated.
+`camera.Device` is the one in use. `Start` takes the camera to begin with: `camera.Start(source, device)` or
 `camera.Start(source, facing: CameraFacing.Back)`.
+
+### Audio output
+
+On Windows `factory.AudioOutputs` lists the speakers and headphones, and `factory.SetAudioOutput(device)` plays calls
+on one of them, also during a call; `null` goes back to the system's default communications device. On Android the
+list is empty: route calls with `AudioManager` (`SetCommunicationDevice` from Android 12, speakerphone before that).
 
 ### Echo cancellation
 

@@ -6,6 +6,9 @@ public sealed record SessionDescription(string Type, string Sdp);
 
 public sealed record IceCandidate(string SdpMid, int SdpMLineIndex, string Candidate);
 
+/// <summary>A speaker or headphones, see <see cref="PeerConnectionFactory.AudioOutputs"/>. The index is only valid until devices change.</summary>
+public sealed record AudioDevice(int Index, string Name);
+
 // Values of these enums match libwebrtc's; the native layer passes them through unchanged.
 public enum SignalingState
 {
