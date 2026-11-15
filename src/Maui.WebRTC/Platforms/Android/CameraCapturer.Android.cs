@@ -18,24 +18,30 @@ public sealed partial class CameraCapturer
     static CameraManager Manager =>
         (CameraManager)global::Android.App.Application.Context.GetSystemService(Context.CameraService)!;
 
-    public partial void Start(VideoSource source, int width, int height, int fps)
+    partial void StartPlatform(VideoSource source, int width, int height, int fps, CameraFacing facing)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_session is not null)
-            throw new InvalidOperationException("The camera is already started.");
-
-        var cameraId = PickCamera(out var facing);
-        _session = new Session(source, cameraId, facing, width, height, fps);
-        _session.Open();
+        var cameraId = PickCamera(facing == CameraFacing.Back ? LensFacing.Back : LensFacing.Front, out var found);
+        var session = new Session(source, cameraId, found, width, height, fps);
+        session.Open();
+        _session = session;
+        Facing = found == LensFacing.Front ? CameraFacing.Front : CameraFacing.Back;
     }
 
-    public partial void Stop()
+    partial void SwitchPlatform(VideoSource source, int width, int height, int fps)
+    {
+        var next = Facing == CameraFacing.Front ? CameraFacing.Back : CameraFacing.Front;
+        StopPlatform();
+        StartPlatform(source, width, height, fps, next);
+    }
+
+    partial void StopPlatform()
     {
         var session = Interlocked.Exchange(ref _session, null);
         session?.Dispose();
     }
 
-    static string PickCamera(out LensFacing facing)
+    /// <summary>The first camera facing the wanted way, or else the first camera there is.</summary>
+    static string PickCamera(LensFacing wanted, out LensFacing facing)
     {
         var ids = Manager.GetCameraIdList();
         if (ids.Length == 0)
@@ -43,16 +49,21 @@ public sealed partial class CameraCapturer
 
         foreach (var id in ids)
         {
-            var value = (Integer?)Manager.GetCameraCharacteristics(id).Get(CameraCharacteristics.LensFacing!);
-            if (value?.IntValue() == (int)LensFacing.Front)
+            if (FacingOf(id) == wanted)
             {
-                facing = LensFacing.Front;
+                facing = wanted;
                 return id;
             }
         }
 
-        facing = LensFacing.Back;
+        facing = FacingOf(ids[0]) ?? LensFacing.Back;
         return ids[0];
+    }
+
+    static LensFacing? FacingOf(string id)
+    {
+        var value = (Integer?)Manager.GetCameraCharacteristics(id).Get(CameraCharacteristics.LensFacing!);
+        return value is null ? null : (LensFacing)value.IntValue();
     }
 
     sealed class Session(VideoSource source, string cameraId, LensFacing facing, int width, int height, int fps) : IDisposable

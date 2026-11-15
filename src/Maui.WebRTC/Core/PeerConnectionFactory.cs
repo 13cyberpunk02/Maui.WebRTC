@@ -3,16 +3,45 @@ using Maui.WebRTC.Native;
 
 namespace Maui.WebRTC;
 
+/// <summary>How a <see cref="PeerConnectionFactory"/> captures and cleans up audio.</summary>
+public sealed class PeerConnectionFactoryOptions
+{
+    /// <summary>
+    /// Android: use the phone's built-in echo canceller instead of libwebrtc's own. Off by default:
+    /// built-in ones differ a lot between phones and many let the other side hear themselves, while
+    /// libwebrtc's (AEC3) behaves the same on every device. Ignored on other platforms.
+    /// </summary>
+    public bool UseHardwareEchoCanceller { get; init; }
+
+    /// <summary>Android: likewise for noise suppression. Off by default. Ignored on other platforms.</summary>
+    public bool UseHardwareNoiseSuppressor { get; init; }
+}
+
 /// <summary>Owns the libwebrtc threads and media engine. Create one per application.</summary>
 public sealed class PeerConnectionFactory : IDisposable
 {
     nint _handle;
+#if ANDROID
+    AndroidAudioDevice? _audioDevice;
+#endif
 
-    public PeerConnectionFactory()
+    public PeerConnectionFactory() : this(null)
+    {
+    }
+
+    public PeerConnectionFactory(PeerConnectionFactoryOptions? options)
     {
         EnsureNativeLibraryLoaded();
+        options ??= new PeerConnectionFactoryOptions();
 
+#if ANDROID
+        _audioDevice = AndroidAudioDevice.Create(options);
+        _handle = NativeMethods.FactoryCreateWithAudioDevice(_audioDevice.Handle);
+        if (_handle == 0)
+            _audioDevice.Dispose();
+#else
         _handle = NativeMethods.FactoryCreate();
+#endif
         if (_handle == 0)
             throw new WebRtcException("Failed to create the native PeerConnectionFactory.");
     }
@@ -66,6 +95,10 @@ public sealed class PeerConnectionFactory : IDisposable
         var handle = Interlocked.Exchange(ref _handle, 0);
         if (handle != 0)
             NativeMethods.FactoryDestroy(handle);
+#if ANDROID
+        // After the factory: the native side holds its own reference to the device for as long as it needs it.
+        Interlocked.Exchange(ref _audioDevice, null)?.Dispose();
+#endif
     }
 
     internal static void EnsureLoaded() => EnsureNativeLibraryLoaded();

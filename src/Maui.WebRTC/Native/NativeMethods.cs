@@ -47,6 +47,9 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(Library, EntryPoint = "mrtc_factory_create")]
     internal static partial nint FactoryCreate();
 
+    [LibraryImport(Library, EntryPoint = "mrtc_factory_create_with_audio_device")]
+    internal static partial nint FactoryCreateWithAudioDevice(nint androidAudioDeviceModule);
+
     [LibraryImport(Library, EntryPoint = "mrtc_factory_destroy")]
     internal static partial void FactoryDestroy(nint factory);
 

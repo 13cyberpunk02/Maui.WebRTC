@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/audio/builtin_audio_processing_builder.h"
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
@@ -517,6 +518,34 @@ void mrtc_android_set_context(void* application_context) {
 #endif
 
 mrtc_factory* mrtc_factory_create(void) {
+  return mrtc_factory_create_with_audio_device(nullptr);
+}
+
+#if defined(__ANDROID__)
+namespace {
+// The native module behind a Java org.webrtc.audio.JavaAudioDeviceModule. The Java object keeps a
+// reference of its own and gives it up in release(), so this one only adds to it.
+webrtc::scoped_refptr<webrtc::AudioDeviceModule> NativeAudioDeviceModule(JNIEnv* jni, jobject java_module,
+                                                                         const webrtc::Environment& env) {
+  jclass type = jni->GetObjectClass(java_module);
+  jmethodID get_native = jni->GetMethodID(type, "getNative", "(J)J");
+  jni->DeleteLocalRef(type);
+  if (get_native == nullptr) {
+    jni->ExceptionClear();
+    return nullptr;
+  }
+  // The environment is only read while the module is created, inside this call.
+  jlong pointer = jni->CallLongMethod(java_module, get_native, reinterpret_cast<jlong>(&env));
+  if (jni->ExceptionCheck()) {
+    jni->ExceptionClear();
+    return nullptr;
+  }
+  return webrtc::scoped_refptr<webrtc::AudioDeviceModule>(reinterpret_cast<webrtc::AudioDeviceModule*>(pointer));
+}
+}  // namespace
+#endif
+
+mrtc_factory* mrtc_factory_create_with_audio_device(void* android_audio_device_module) {
 #if defined(__ANDROID__)
   // SSL is already initialized by libwebrtc's JNI_OnLoad on Android.
   if (g_application_context == nullptr) {
@@ -547,10 +576,23 @@ mrtc_factory* mrtc_factory_create(void) {
 #if defined(__ANDROID__)
   // There is no default audio device on Android; it has to go through the Java AudioRecord/AudioTrack.
   webrtc::Environment env = webrtc::CreateEnvironment();
-  deps.adm = webrtc::CreateJavaAudioDeviceModule(webrtc::AttachCurrentThreadIfNeeded(), env,
-                                                 g_application_context);
+  JNIEnv* jni = webrtc::AttachCurrentThreadIfNeeded();
+  if (android_audio_device_module != nullptr) {
+    deps.adm = NativeAudioDeviceModule(jni, static_cast<jobject>(android_audio_device_module), env);
+    if (!deps.adm) {
+      return nullptr;
+    }
+  } else {
+    // Uses the phone's own echo canceller where it has one, and then turns libwebrtc's off.
+    deps.adm = webrtc::CreateJavaAudioDeviceModule(jni, env, g_application_context);
+  }
   deps.env = env;
+#else
+  (void)android_audio_device_module;
 #endif
+  // Echo cancellation, noise suppression and gain control in software (AEC3), set up explicitly
+  // rather than left to whatever the defaults are in a given libwebrtc version.
+  deps.audio_processing_builder = std::make_unique<webrtc::BuiltinAudioProcessingBuilder>();
   webrtc::EnableMediaWithDefaults(deps);
 
   state->factory = webrtc::CreateModularPeerConnectionFactory(std::move(deps));
@@ -725,7 +767,13 @@ void mrtc_video_source_push(mrtc_video_source* source, int32_t width, int32_t he
 }
 
 mrtc_track* mrtc_factory_create_audio_track(mrtc_factory* factory, const char* label) {
-  auto source = factory->state->factory->CreateAudioSource(webrtc::AudioOptions());
+  // Asked for explicitly: a call needs all of these, and the defaults have changed between versions.
+  webrtc::AudioOptions options;
+  options.echo_cancellation = true;
+  options.noise_suppression = true;
+  options.auto_gain_control = true;
+  options.highpass_filter = true;
+  auto source = factory->state->factory->CreateAudioSource(options);
   if (!source) {
     return nullptr;
   }

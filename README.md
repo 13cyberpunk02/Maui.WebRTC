@@ -61,6 +61,26 @@ await connection.SetLocalDescriptionAsync(offer);
 
 Events are raised in order on a background thread, so handlers must switch to the main thread to touch the UI.
 
+### Camera
+
+`camera.Switch()` moves to the other camera during a call: between front and back on a phone, to the next connected
+camera on Windows. Frames keep going into the same source, so nothing has to be renegotiated. `CameraCapturer.CanSwitch`
+tells whether there is another camera, and `camera.Facing` which one is in use. `Start` takes the camera to begin with:
+`camera.Start(source, facing: CameraFacing.Back)`.
+
+### Echo cancellation
+
+Echo cancellation, noise suppression and gain control run in libwebrtc itself (AEC3) on every platform. On Android the
+phone's built-in echo canceller is left off by default: they differ a lot between phones, and many let the other side
+hear themselves. To use it anyway:
+
+```csharp
+var factory = new PeerConnectionFactory(new PeerConnectionFactoryOptions { UseHardwareEchoCanceller = true });
+```
+
+On Android, set `AudioManager.Mode` to `InCommunication` for the length of a call. Without it the call plays at media
+volume through the media path, where echo cancellation can't do its job.
+
 ## Signaling
 
 WebRTC does not define how peers exchange offers, answers and candidates: that is up to the app. Deliver them in order

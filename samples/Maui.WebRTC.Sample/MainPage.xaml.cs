@@ -136,7 +136,11 @@ public partial class MainPage : ContentPage
 		{
 			_camera = new CameraCapturer();
 			_camera.Start(_source);
-			_input = "camera";
+			_input = $"camera {_camera.Facing}";
+			SwitchCameraButton.IsVisible = CameraCapturer.CanSwitch;
+			// For automated runs: switches once on its own, as a tap on the button would.
+			if (int.TryParse(LaunchOption("switchAfter"), out var seconds))
+				Dispatcher.DispatchDelayed(TimeSpan.FromSeconds(seconds), () => OnSwitchCameraClicked(this, EventArgs.Empty));
 		}
 
 		if (micAllowed)
@@ -144,6 +148,26 @@ public partial class MainPage : ContentPage
 			_audioTrack = _factory.CreateAudioTrack();
 			_audioTrack.Enabled = microphoneLive;
 		}
+	}
+
+	// The frames keep going into the same source, so the call carries on without renegotiating.
+	async void OnSwitchCameraClicked(object? sender, EventArgs e)
+	{
+		if (_camera is not { } camera)
+			return;
+
+		SwitchCameraButton.IsEnabled = false;
+		try
+		{
+			await Task.Run(camera.Switch);
+			_input = $"camera {camera.Facing}";
+			Console.WriteLine($"MRTC-CAMERA switched to {camera.Facing}");
+		}
+		catch (Exception ex)
+		{
+			StatusLabel.Text = $"switch failed: {ex.Message}";
+		}
+		SwitchCameraButton.IsEnabled = true;
 	}
 
 	static void UseCallAudioRouting()

@@ -43,6 +43,12 @@ MRTC_API void mrtc_android_set_context(void* application_context);
 /* Returns NULL on failure. Release with mrtc_factory_destroy. Peer connections and data channels
  * keep the underlying threads alive, so they may outlive this handle. */
 MRTC_API mrtc_factory* mrtc_factory_create(void);
+
+/* Like mrtc_factory_create, with the audio device chosen by the caller. On Android
+ * `android_audio_device_module` may be an org.webrtc.audio.JavaAudioDeviceModule JNI reference,
+ * built with the options the app wants; the caller keeps it alive until the factory is gone and
+ * releases it after that. NULL, and every other platform, uses the default device. */
+MRTC_API mrtc_factory* mrtc_factory_create_with_audio_device(void* android_audio_device_module);
 MRTC_API void mrtc_factory_destroy(mrtc_factory* factory);
 
 typedef struct mrtc_ice_server {

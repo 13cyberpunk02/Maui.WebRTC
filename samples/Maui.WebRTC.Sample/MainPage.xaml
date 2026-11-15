@@ -16,6 +16,8 @@
         </Grid>
 
         <webrtc:VideoView x:Name="LocalVideo" Grid.Row="2" />
+        <Button Grid.Row="2" x:Name="SwitchCameraButton" AutomationId="SwitchCamera" Text="Switch camera" IsVisible="False"
+                HorizontalOptions="End" VerticalOptions="End" Margin="12" Clicked="OnSwitchCameraClicked" />
         <Label Grid.Row="3" Text="Remote" Padding="12,4" TextColor="White" />
         <webrtc:VideoView x:Name="RemoteVideo" Grid.Row="4" />
     </Grid>
